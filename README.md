@@ -17,6 +17,10 @@ they go back together.
 [Support the project](#support-bigprint)
 
 ![bigprint splitting a model scaled to 1 m tall into 46 printable pieces](docs/screenshot.png)
+*The bigprint GUI: a model scaled to 1 m tall and split into 46 bed-sized pieces, with a filament estimate and an exploded 3D preview.*
+
+![Processed pieces in Bambu Studio showing dowel holes, debossed piece IDs and dowel pins](docs/bambustudio.png)
+*Screenshot taken in Bambu Studio with a model processed by bigprint: cut faces with matching dowel holes and debossed piece IDs, plus the printable dowel pins (left).*
 
 ### Beta status
 
