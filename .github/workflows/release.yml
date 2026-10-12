@@ -1,0 +1,50 @@
+name: Release
+
+# Push a tag like v0.1.0 (matching bigprint/__init__.py) to build the Windows
+# zip and attach it to a GitHub Release with that name.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Check placeholders are filled in
+        run: python packaging/fill_placeholders.py --check
+
+      - name: Check the tag matches the version
+        shell: pwsh
+        run: |
+          $version = python -c "import re; print(re.search(r'__version__ = \"(.+?)\"', open('bigprint/__init__.py').read()).group(1))"
+          if ("${{ github.ref_name }}" -ne "v$version") { throw "Tag ${{ github.ref_name }} does not match version v$version" }
+
+      - name: Set up build environment
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install -e ".[dev]" pyinstaller
+
+      - name: Run tests
+        run: .venv\Scripts\python -m pytest -q
+
+      - name: Build (includes the packaged smoke test)
+        shell: pwsh
+        run: .\packaging\build_windows.ps1
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) { gh release create $tag --title "bigprint $tag" --generate-notes }
+          gh release upload $tag (Get-ChildItem dist\*.zip).FullName --clobber

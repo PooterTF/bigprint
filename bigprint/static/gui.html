@@ -1,0 +1,575 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bigprint</title>
+<style>
+  :root {
+    --bg: #f3f3f1; --panel: #ffffff; --sunk: #f7f7f5; --ink: #1c1c1e; --muted: #6a6a70;
+    --line: #dddddb; --accent: #1f6f78; --accent-ink: #ffffff; --warn-bg: #fff6e0; --warn-ink: #7a5200;
+    --err-bg: #fdecec; --err-ink: #9b1c1c; --ok-ink: #1d7a46; color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151618; --panel: #1f2023; --sunk: #191a1c; --ink: #ececec; --muted: #9c9ca3;
+      --line: #333438; --accent: #4fb3bd; --accent-ink: #0d1517; --warn-bg: #3a2f14; --warn-ink: #f3d38a;
+      --err-bg: #3d1b1b; --err-ink: #f5a9a9; --ok-ink: #6fd39b; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: baseline; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  header > span { color: var(--muted); font-size: 13px; }
+  header { align-items: center; }
+  .links { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 13px; }
+  .links a, .links summary { color: var(--accent); text-decoration: none; cursor: pointer; }
+  .links a:hover, .links summary:hover { text-decoration: underline; }
+  .support { position: relative; }
+  .support summary { list-style: none; font-weight: 600; }
+  .support summary::-webkit-details-marker { display: none; }
+  .support .menu { position: absolute; right: 0; top: 26px; z-index: 5; width: 240px; padding: 10px 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+  .support .menu p { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; }
+  .support .menu a { display: block; padding: 5px 0; font-weight: 600; }
+  .thanks { margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+  .thanks a { color: var(--accent); }
+  .quit { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .quit button { padding: 5px 12px; }
+  #quitAsk { color: var(--warn-ink); }
+  .stopped { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+  .stopped h2 { margin: 0 0 8px; font-size: 20px; }
+  .stopped p { margin: 6px 0; }
+  .stopped code { font: 13px ui-monospace, Consolas, monospace; background: var(--sunk); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .app { display: grid; grid-template-columns: 380px 1fr; height: calc(100% - 45px); }
+  aside { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); min-height: 0; }
+  .form { overflow: auto; padding: 4px 16px 16px; flex: 1; }
+  section.step { border-bottom: 1px solid var(--line); padding: 14px 0; }
+  section.step:last-child { border-bottom: 0; }
+  .step h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+  .row > label { flex: 1 1 130px; color: var(--muted); font-size: 13px; }
+  input[type=number], input[type=text], select {
+    font: inherit; color: var(--ink); background: var(--sunk); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; min-width: 0;
+  }
+  input[type=number] { width: 88px; }
+  input[type=text] { width: 100%; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .check { display: flex; gap: 8px; align-items: center; margin: 8px 0; cursor: pointer; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+  .hint.warn { color: var(--warn-ink); background: var(--warn-bg); padding: 6px 8px; border-radius: 6px; }
+  .sub { padding-left: 26px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 0; }
+  .drop {
+    border: 1.5px dashed var(--line); border-radius: 10px; padding: 16px; text-align: center; cursor: pointer;
+    background: var(--sunk); transition: border-color .15s, background .15s;
+  }
+  .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--sunk)); }
+  .drop strong { display: block; margin-bottom: 2px; }
+  .model-info { margin-top: 10px; font-size: 13px; }
+  .model-info b { font-weight: 600; }
+  .actions { border-top: 1px solid var(--line); padding: 12px 16px; display: grid; gap: 8px; background: var(--panel); }
+  button {
+    font: inherit; border-radius: 7px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink);
+  }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .btns { display: flex; gap: 8px; } .btns button { flex: 1; }
+  .status { font-size: 12.5px; color: var(--muted); min-height: 1.2em; }
+  .status.err { color: var(--err-ink); } .status.ok { color: var(--ok-ink); }
+  main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .cards { display: flex; gap: 10px; padding: 12px 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .card { min-width: 110px; }
+  .card .k { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .card .v { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .card .s { font-size: 12px; color: var(--muted); }
+  .basis { padding: 8px 16px 10px; border-bottom: 1px solid var(--line); background: var(--panel); font-size: 13px; }
+  .basis .w { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .stage { position: relative; flex: 1; min-height: 300px; }
+  .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .empty, .busy { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; color: var(--muted); }
+  .busy { background: color-mix(in srgb, var(--bg) 88%, transparent); color: var(--ink); }
+  .bar { width: min(420px, 80%); height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .drawer { border-top: 1px solid var(--line); background: var(--panel); max-height: 38%; overflow: auto; }
+  .drawer details { border-bottom: 1px solid var(--line); padding: 4px 16px; }
+  .drawer summary { padding: 6px 0; }
+  .warnlist { margin: 4px 0 10px; padding-left: 18px; font-size: 13px; }
+  .warnlist li { margin: 3px 0; }
+  table { border-collapse: collapse; font-size: 12.5px; margin: 4px 0 10px; width: 100%; }
+  th, td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  pre.log { font: 12px/1.4 ui-monospace, Consolas, monospace; white-space: pre-wrap; margin: 4px 0 10px; color: var(--muted); }
+  .saved { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    aside { border-right: 0; border-bottom: 1px solid var(--line); }
+    .stage { min-height: 420px; }
+  }
+</style>
+</head>
+<body>
+<header><h1>bigprint</h1><span>Scale a model to life size and split it into printable pieces</span>
+  <nav class="links">
+    <details class="support" id="supportMenu">
+      <summary>♥ Support bigprint</summary>
+      <div class="menu" id="supportLinks"><p>bigprint is free and open source. If it saves you time, a tip keeps it going:</p></div>
+    </details>
+    <a id="sourceLink" target="_blank" rel="noopener">Source code</a>
+  </nav>
+  <div class="quit">
+    <span id="quitAsk" hidden>A preview is running. Stop it and quit?</span>
+    <button id="quitNo" hidden>Keep working</button>
+    <button id="quitBtn" title="Stop bigprint and its background processes">Quit bigprint</button>
+  </div>
+</header>
+<div class="stopped" id="stopped" hidden>
+  <div>
+    <h2>bigprint has stopped</h2>
+    <p>All background processes have ended and temporary files were removed.</p>
+    <p id="stoppedClose">You can close this tab now.</p>
+    <p class="hint">To start again, run <code>bigprint-gui</code>.</p>
+  </div>
+</div>
+<div class="app">
+<aside>
+  <div class="form" id="form">
+    <section class="step">
+      <h2>1 · Model</h2>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a model file">
+        <strong>Drop an STL here</strong>
+        <span class="hint">or click to choose a file (STL, OBJ, 3MF, PLY)</span>
+      </div>
+      <input type="file" id="file" accept=".stl,.obj,.3mf,.ply" hidden>
+      <div class="model-info" id="modelInfo" hidden></div>
+      <label class="check"><input type="checkbox" id="repair" checked> Repair damaged models automatically</label>
+    </section>
+
+    <section class="step">
+      <h2>2 · Final size</h2>
+      <div class="row">
+        <select id="size_mode" aria-label="Size by">
+          <option value="height">Height</option><option value="width">Width</option>
+          <option value="depth">Depth</option><option value="scale">Scale factor</option>
+        </select>
+        <input type="number" id="size_value" value="1.8" min="0" step="any" aria-label="Size">
+        <select id="size_unit" aria-label="Unit"></select>
+      </div>
+      <p class="hint" id="finalSize">Choose a model to see its final size.</p>
+      <p class="hint warn" id="facetHint" hidden></p>
+    </section>
+
+    <section class="step">
+      <h2>3 · Printer</h2>
+      <div class="row"><select id="printer" style="flex:1" aria-label="Printer"></select></div>
+      <div class="row" id="customBed" hidden>
+        <label>Bed W × D × H (mm)</label>
+        <input type="number" id="bed_w" value="250" aria-label="Bed width">
+        <input type="number" id="bed_d" value="250" aria-label="Bed depth">
+        <input type="number" id="bed_h" value="250" aria-label="Bed height">
+      </div>
+      <p class="hint" id="gridHint"></p>
+    </section>
+
+    <section class="step">
+      <h2>4 · Strength &amp; filament</h2>
+      <div class="row"><label for="purpose">Use</label>
+        <select id="purpose">
+          <option value="display">Display piece</option><option value="wearable">Wearable / handled</option><option value="structural">Structural</option>
+        </select></div>
+      <p class="hint" id="purposeHint"></p>
+      <div class="row"><label for="hollow">Hollow pieces</label>
+        <select id="hollow"><option value="auto">Auto (when it saves filament)</option><option value="on">Always</option><option value="off">Never</option></select></div>
+      <div class="row"><label for="wall">Shell wall (mm)</label><input type="number" id="wall" value="4" step="0.5" min="0.8"></div>
+      <div class="row"><label for="material">Material</label><select id="material"></select></div>
+      <div class="row"><label for="price">Price per kg (optional)</label><input type="number" id="price" min="0" step="any" placeholder="e.g. 20"></div>
+    </section>
+
+    <section class="step">
+      <h2>5 · Connectors &amp; labels</h2>
+      <label class="check"><input type="checkbox" id="dowels" checked> Dowel pins between pieces</label>
+      <div class="sub" id="dowelOpts">
+        <div class="row"><label for="dowel_d">Pin diameter (mm)</label><input type="number" id="dowel_d" value="6" step="0.5" min="1"></div>
+        <div class="row"><label for="dowel_depth">Depth per side (mm)</label><input type="number" id="dowel_depth" value="15" step="1" min="3"></div>
+        <div class="row"><label for="clearance">Hole clearance (mm)</label><input type="number" id="clearance" value="0.4" step="0.05" min="0"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="labels" checked> Deboss piece IDs on hidden faces</label>
+    </section>
+
+    <section class="step">
+      <h2>6 · Surface</h2>
+      <label class="check"><input type="checkbox" id="smooth"> Smooth out low-poly facets</label>
+      <div class="sub" id="smoothOpts" hidden>
+        <div class="row"><label for="smooth_angle">Keep edges sharper than (°)</label><input type="number" id="smooth_angle" value="60" min="1" max="180"></div>
+        <div class="row"><label for="smooth_edge">Triangle size (mm)</label><input type="number" id="smooth_edge" value="5" step="0.5" min="0.5"></div>
+        <p class="hint">Smoothing roughly doubles processing time.</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <details>
+        <summary>Advanced</summary>
+        <div class="row"><label for="up">Up axis of the model</label>
+          <select id="up"><option value="z">Z (default)</option><option value="y">Y (Blender, games)</option><option value="-y">−Y</option><option value="x">X</option><option value="-z">−Z (upside down)</option></select></div>
+        <div class="row"><label for="margin">Bed margin (mm)</label><input type="number" id="margin" value="5" min="0"></div>
+        <div class="row"><label for="nozzle">Nozzle (mm)</label><input type="number" id="nozzle" value="0.4" step="0.1" min="0.1"></div>
+        <label class="check"><input type="checkbox" id="merge_small" checked> Merge tiny fragments into neighbours</label>
+        <label class="check"><input type="checkbox" id="even_cuts"> Space cuts evenly (don't seek narrow spots)</label>
+      </details>
+    </section>
+
+    <section class="step">
+      <h2>7 · Save to</h2>
+      <input type="text" id="out" placeholder="Output folder, e.g. C:\Users\you\Documents\prints\knight" aria-label="Output folder">
+    </section>
+  </div>
+
+  <div class="actions">
+    <div class="btns">
+      <button class="primary" id="previewBtn" disabled>Preview</button>
+      <button id="saveBtn" disabled>Save print files</button>
+    </div>
+    <div class="status" id="status" role="status">Choose a model to begin.</div>
+  </div>
+</aside>
+
+<main>
+  <div class="cards" id="cards" hidden></div>
+  <div class="basis" id="basis" hidden><div class="b"></div><div class="w"></div></div>
+  <div class="stage">
+    <div class="empty" id="empty">
+      <div style="font-size:15px;color:var(--ink)">Nothing to show yet</div>
+      <div>Pick a model and settings, then click <b>Preview</b>.<br>Preview is a dry run: it computes everything but writes no files until you click <b>Save print files</b>.</div>
+    </div>
+    <iframe id="viewer" title="3D preview" hidden></iframe>
+    <div class="busy" id="busy" hidden>
+      <div id="busyStage" style="font-size:15px">Working…</div>
+      <div class="bar"><div id="busyBar"></div></div>
+      <div class="hint" id="busyPct"></div>
+      <button id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+  <div class="drawer" id="drawer" hidden>
+    <details id="warnBox"><summary id="warnSummary">Warnings</summary><ul class="warnlist" id="warnList"></ul></details>
+    <details><summary>Pieces</summary><div id="pieceTable"></div></details>
+    <details><summary>Log</summary><pre class="log" id="log"></pre></details>
+  </div>
+</main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const UNIT_MM = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 };
+let cfg = null, model = null, previewKey = null, polling = null, lastOut = null, staleShown = false;
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Bigprint': '1' }, body: JSON.stringify(body),
+  };
+  let r;
+  try { r = await fetch(path, opts); }
+  catch { throw new Error('Can\u2019t reach bigprint. It may have been stopped; run bigprint-gui to start it again.'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
+  return data;
+}
+
+function setStatus(text, kind = '') { const s = $('status'); s.textContent = text; s.className = 'status ' + kind; }
+
+// ---------------------------------------------------------------- settings
+const FIELDS = ['size_mode','size_value','size_unit','printer','bed_w','bed_d','bed_h','purpose','hollow','wall','material',
+  'price','dowels','dowel_d','dowel_depth','clearance','labels','smooth','smooth_angle','smooth_edge','up','margin','nozzle',
+  'merge_small','even_cuts','repair'];
+
+function settings() {
+  const s = { model_id: model ? model.id : null };
+  for (const f of FIELDS) { const el = $(f); s[f] = el.type === 'checkbox' ? el.checked : el.value; }
+  s.bed = [s.bed_w, s.bed_d, s.bed_h]; delete s.bed_w; delete s.bed_d; delete s.bed_h;
+  return s;
+}
+const keyOf = s => JSON.stringify(s, Object.keys(s).sort());
+
+function bedSize() {
+  const p = $('printer').value;
+  return p === 'custom' ? [+$('bed_w').value, +$('bed_d').value, +$('bed_h').value] : cfg.printers[p];
+}
+
+function orientedExtents(e, up) {
+  if (up === 'y' || up === '-y') return [e[0], e[2], e[1]];
+  if (up === 'x') return [e[2], e[1], e[0]];
+  return e.slice();
+}
+
+function updateDerived() {
+  $('size_unit').hidden = $('size_mode').value === 'scale';
+  const pr = cfg.presets[$('purpose').value];
+  $('purposeHint').textContent = pr ? `${pr.describe}. ${pr.why}` : '';
+  $('customBed').hidden = $('printer').value !== 'custom';
+  $('dowelOpts').hidden = !$('dowels').checked;
+  $('smoothOpts').hidden = !$('smooth').checked;
+  const bed = bedSize();
+  $('gridHint').textContent = bed ? `Build volume ${bed.join(' × ')} mm` : '';
+
+  if (model) {
+    const e = orientedExtents(model.extents, $('up').value);
+    const v = parseFloat($('size_value').value), mode = $('size_mode').value;
+    let f = NaN;
+    if (mode === 'scale') f = v;
+    else { const mm = v * UNIT_MM[$('size_unit').value]; f = mm / e[{ width: 0, depth: 1, height: 2 }[mode]]; }
+    if (isFinite(f) && f > 0) {
+      const fin = e.map(x => x * f), m = +$('margin').value || 0;
+      const cells = fin.map((x, i) => Math.max(1, Math.ceil(x / (bed[i] - m))));
+      $('finalSize').innerHTML = `Final size <b>${fin.map(x => Math.round(x)).join(' × ')} mm</b> (×${f.toFixed(2)})<br>` +
+        `Grid of up to ${cells.join(' × ')} = ${cells[0] * cells[1] * cells[2]} cells before hollowing and merging`;
+      const facet = model.median_edge * f;
+      const hint = $('facetHint');
+      hint.hidden = !(facet > 3 && !$('smooth').checked);
+      hint.textContent = `This model's triangles will be about ${Math.round(facet)} mm across at this size, so flat facets will show. Consider turning on “Smooth out low-poly facets”.`;
+    } else {
+      $('finalSize').textContent = 'Enter a size greater than zero.';
+      $('facetHint').hidden = true;
+    }
+  }
+  const running = polling !== null;
+  $('previewBtn').disabled = !model || running;
+  const current = previewKey !== null && previewKey === keyOf(settings());
+  $('saveBtn').disabled = running || !current;
+  if (!running && previewKey !== null && !current && !$('status').classList.contains('err')) {
+    setStatus('Settings changed since the preview. Click Preview to update it before saving.');
+    staleShown = true;
+  } else if (!running && current && staleShown) {
+    setStatus('Preview matches the current settings. Ready to save.', 'ok');
+    staleShown = false;
+  }
+}
+
+// ---------------------------------------------------------------- model upload
+async function upload(file) {
+  if (!file) return;
+  setStatus(`Reading ${file.name}…`);
+  try {
+    const r = await fetch('/api/upload', {
+      method: 'POST', body: file, headers: { 'X-Bigprint': '1', 'X-Filename': encodeURIComponent(file.name) },
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Upload failed');
+    const prevDefault = model && model.default_out;
+    model = data; previewKey = null;
+    if (!$('out').value || $('out').value === prevDefault) $('out').value = model.default_out;
+    const e = model.extents.map(x => x.toFixed(1)).join(' × ');
+    $('modelInfo').hidden = false;
+    $('modelInfo').innerHTML = `<b></b><br>Original size ${e} mm · ${model.triangles.toLocaleString()} triangles` +
+      (model.watertight ? '' : '<br><span style="color:var(--warn-ink)">Has holes or overlapping surfaces. Keep “Repair damaged models” on, or fix it in your slicer first.</span>');
+    $('modelInfo').querySelector('b').textContent = model.name;
+    setStatus('Ready. Adjust settings, then click Preview.');
+  } catch (err) { setStatus(err.message, 'err'); }
+  updateDerived();
+}
+
+const drop = $('drop');
+drop.onclick = () => $('file').click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } };
+$('file').onchange = e => upload(e.target.files[0]);
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); upload(e.dataTransfer.files[0]); };
+
+// ---------------------------------------------------------------- jobs
+async function startPreview() {
+  try {
+    await api('/api/preview', { settings: settings() });
+    pendingKey = keyOf(settings());
+    previewKey = null;  // the server discards the previous result when a new preview starts
+    beginPolling('Preview');
+  } catch (err) { setStatus(err.message, 'err'); }
+}
+let pendingKey = null;
+
+async function startSave() {
+  const out = $('out').value.trim();
+  try {
+    await api('/api/save', { settings: settings(), out });
+    beginPolling('Saving');
+  } catch (err) { setStatus(err.message, 'err'); }
+}
+
+function beginPolling(label) {
+  $('busy').hidden = false; $('empty').hidden = true; $('busyStage').textContent = `${label}: starting…`; $('busyBar').style.width = '0';
+  setStatus(`${label} running…`);
+  polling = setInterval(poll, 500);
+  updateDerived();
+}
+
+async function poll() {
+  let data;
+  try { data = await api('/api/job'); } catch { return; }
+  const job = data.job; if (!job) return;
+  $('busyStage').textContent = job.stage;
+  $('busyBar').style.width = `${Math.round(job.fraction * 100)}%`;
+  $('busyPct').textContent = `${Math.round(job.fraction * 100)}%`;
+  $('log').textContent = job.log.join('\n');
+  if (job.state === 'running') return;
+
+  clearInterval(polling); polling = null; $('busy').hidden = true;
+  $('empty').hidden = !$('viewer').hidden || job.state === 'done';
+  if (job.state === 'error') {
+    if (job.kind === 'preview') previewKey = null;
+    setStatus(`Failed: ${job.error}`, 'err');
+  }
+  else if (job.state === 'cancelled') {
+    previewKey = null;  // the stopped worker held the result
+    setStatus(job.kind === 'save'
+      ? 'Save cancelled. Files already written may be incomplete. Preview again before saving.'
+      : 'Cancelled. You can start a new preview right away.');
+  }
+  else if (job.kind === 'preview') {
+    previewKey = pendingKey;
+    showSummary(data.summary);
+    $('viewer').src = `/api/preview?t=${Date.now()}`;
+    $('viewer').hidden = false; $('empty').hidden = true;
+    setStatus('Preview ready. Nothing has been written yet. Click “Save print files” when you’re happy.', 'ok');
+  } else {
+    lastOut = job.out;
+    const s = $('status'); s.className = 'status ok'; s.innerHTML = '';
+    const wrap = document.createElement('div'); wrap.className = 'saved';
+    const txt = document.createElement('span'); txt.textContent = `Saved to ${job.out}`;
+    const btn = document.createElement('button'); btn.textContent = 'Open folder';
+    btn.onclick = () => api('/api/open-folder', { path: lastOut }).catch(err => setStatus(err.message, 'err'));
+    wrap.append(txt, btn); s.append(wrap);
+    s.append(thanksLine());
+  }
+  updateDerived();
+}
+
+function supportAnchor(name, url) {
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = name;
+  return a;
+}
+function thanksLine() {
+  const d = document.createElement('div'); d.className = 'thanks';
+  d.append('Enjoying bigprint? Support it: ');
+  Object.entries(cfg.project.support).forEach(([name, url], i) => {
+    if (i) d.append(' · ');
+    d.append(supportAnchor(name, url));
+  });
+  return d;
+}
+
+function card(k, v, s = '') {
+  const d = document.createElement('div'); d.className = 'card';
+  d.innerHTML = '<div class="k"></div><div class="v"></div><div class="s"></div>';
+  d.children[0].textContent = k; d.children[1].textContent = v; d.children[2].textContent = s;
+  return d;
+}
+
+function showSummary(sm) {
+  if (!sm) return;
+  const cards = $('cards'); cards.innerHTML = ''; cards.hidden = false;
+  cards.append(
+    card('Pieces', sm.pieces, sm.dropped ? `${sm.dropped} interior cell(s) skipped` : ''),
+    card('Filament', `${sm.kg.toFixed(2)} kg`,
+      `${sm.preset.walls} walls + ${sm.preset.infill} ${sm.preset.pattern} · vs ${sm.solid_kg.toFixed(1)} kg solid`),
+  );
+  if (sm.cost != null) cards.append(card('Cost', sm.cost.toFixed(2), 'estimate'));
+  const pins = sm.pins.map(p => `${p.count}× ${p.length} mm`).join(', ');
+  cards.append(card('Dowels', sm.dowels, pins), card('Final size', sm.size.join(' × '), `mm · ×${sm.scale.toFixed(2)}`));
+
+  const basis = $('basis');
+  basis.hidden = false;
+  basis.querySelector('.b').textContent = `Filament estimate based on: ${sm.basis}`;
+  basis.querySelector('.w').textContent = `Why: ${sm.preset.why} Fine-tune infill and patterns in your slicer if you like.`;
+  $('drawer').hidden = false;
+  $('warnSummary').textContent = `Warnings (${sm.warnings.length})`;
+  const wl = $('warnList'); wl.innerHTML = '';
+  for (const w of sm.warnings) { const li = document.createElement('li'); li.textContent = w; wl.append(li); }
+  if (!sm.warnings.length) { const li = document.createElement('li'); li.textContent = 'None'; wl.append(li); }
+
+  const t = document.createElement('table');
+  t.innerHTML = '<thead><tr><th>ID</th><th>Print size (mm)</th><th>Fill</th><th>Est. g</th></tr></thead>';
+  const tb = document.createElement('tbody');
+  for (const p of sm.table) {
+    const tr = document.createElement('tr');
+    for (const v of [p.id, p.size.join(' × '), p.fill, p.grams]) { const td = document.createElement('td'); td.textContent = v; tr.append(td); }
+    tb.append(tr);
+  }
+  t.append(tb); $('pieceTable').innerHTML = ''; $('pieceTable').append(t);
+}
+
+// ---------------------------------------------------------------- quit
+function showStopped() {
+  if (polling) { clearInterval(polling); polling = null; }
+  clearInterval(heartbeat);
+  $('stopped').hidden = false;
+  // Browsers only let a page close a tab they consider script-closable (e.g. a
+  // tab opened fresh with a single page in its history). If this is refused,
+  // the tab stays open showing the "you can close this tab" message.
+  window.close();
+}
+
+async function quit(confirmed = false) {
+  if (polling && !confirmed) {  // a job is running: ask first
+    $('quitAsk').hidden = false; $('quitNo').hidden = false;
+    $('quitBtn').textContent = 'Stop and quit';
+    $('quitBtn').onclick = () => quit(true);
+    return;
+  }
+  $('quitBtn').disabled = true; $('quitBtn').textContent = 'Quitting…';
+  try { await api('/api/quit', {}); }
+  catch { /* already stopped: same end state */ }
+  showStopped();
+}
+function resetQuit() {
+  $('quitAsk').hidden = true; $('quitNo').hidden = true;
+  $('quitBtn').textContent = 'Quit bigprint'; $('quitBtn').onclick = () => quit();
+}
+$('quitBtn').onclick = () => quit();
+$('quitNo').onclick = resetQuit;
+
+$('previewBtn').onclick = startPreview;
+$('saveBtn').onclick = startSave;
+$('cancelBtn').onclick = async () => {
+  $('cancelBtn').disabled = true;
+  $('busyStage').textContent = 'Stopping…';
+  await api('/api/cancel', {}).catch(() => {});
+  await poll();
+  $('cancelBtn').disabled = false;
+};
+$('form').addEventListener('input', () => { if ($('status').classList.contains('err')) setStatus(''); updateDerived(); });
+$('form').addEventListener('change', updateDerived);
+
+// ---------------------------------------------------------------- heartbeat
+// Tells the server a tab is still open; it quits on its own after a long
+// silence (e.g. the tab was closed without Quit). Browsers slow timers in
+// hidden tabs to about once a minute, which is well within the limit.
+function ping() { fetch('/api/ping').catch(() => {}); }
+const heartbeat = setInterval(ping, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
+
+// ---------------------------------------------------------------- init
+(async () => {
+  cfg = await api('/api/config');
+  for (const u of cfg.units) $('size_unit').add(new Option(u, u, u === 'm', u === 'm'));
+  for (const [k, b] of Object.entries(cfg.printers))
+    $('printer').add(new Option(`${k} (${b.join('×')} mm)`, k, k === cfg.default_printer, k === cfg.default_printer));
+  $('printer').add(new Option('Custom…', 'custom'));
+  for (const m of cfg.materials) $('material').add(new Option(m.toUpperCase(), m));
+  $('sourceLink').href = cfg.project.source;
+  $('sourceLink').title = `bigprint is free software under ${cfg.project.license}`;
+  for (const [name, url] of Object.entries(cfg.project.support)) $('supportLinks').append(supportAnchor(name, url));
+  document.addEventListener('click', e => { if (!$('supportMenu').contains(e.target)) $('supportMenu').open = false; });
+  try {  // remember the last printer between sessions
+    const saved = localStorage.getItem('bigprint.printer');
+    if (saved && (saved in cfg.printers || saved === 'custom')) $('printer').value = saved;
+  } catch {}
+  $('printer').addEventListener('change', () => { try { localStorage.setItem('bigprint.printer', $('printer').value); } catch {} });
+  updateDerived();
+})().catch(err => setStatus(`Could not reach the bigprint server: ${err.message}`, 'err'));
+</script>
+</body>
+</html>

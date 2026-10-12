@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Build output
+build/
+dist/
+
+# bigprint output folders
+*_bigprint/
+
+# Models in the project root: keep personal or copyrighted models out of the repo
+/*.stl
+/*.3mf
+/*.obj
+/*.ply

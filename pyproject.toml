@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bigprint"
+version = "0.1.0"
+description = "Scale 3D models to life size and split them into bed-sized, pinned, labelled pieces"
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Michael Christopher Stone" }]
+requires-python = ">=3.10"
+keywords = ["3d-printing", "stl", "split", "cosplay", "props", "life-size", "dowel", "hollow"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
+dependencies = [
+  "manifold3d>=3.0",
+  "trimesh>=4.0",
+  "numpy",
+  "scipy",
+  "shapely>=2.0",
+  "typer>=0.12",
+  "scikit-image",
+  "lxml",  # trimesh needs it to read 3MF files
+]
+
+[project.urls]
+Homepage = "https://github.com/PooterTF/bigprint"
+Issues = "https://github.com/PooterTF/bigprint/issues"
+Funding = "https://ko-fi.com/pootertf"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+bigprint = "bigprint.cli:app"
+bigprint-gui = "bigprint.gui:main"
+
+[tool.setuptools]
+packages = ["bigprint"]
+
+[tool.setuptools.package-data]
+bigprint = ["static/*.html", "static/vendor/three/*"]
