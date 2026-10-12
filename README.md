@@ -1,18 +1,43 @@
-# bigprint
+# bigprint: free model cutter for life-size 3D prints
 
+[![Status: Beta](https://img.shields.io/badge/status-beta-orange.svg)](#beta-status)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20bigprint-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/pootertf)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20bigprint-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/pootertf)
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/PooterTF)
 
-Free, open-source tool for turning an STL into a **life-size** 3D print: it
-scales the model, splits it into pieces that fit your printer bed, hollows it
-to save filament, adds dowel-pin connectors, and labels every piece. An
-open-source alternative to tools like LuBan3D.
+A free, open-source model cutter built for **scaling models up to life size**.
+Give it a model and a target size, such as 1.8 m tall. bigprint scales it up,
+cuts it into pieces that fit your printer bed, hollows the pieces to save
+filament, adds dowel-pin connectors, and labels every piece so you know how
+they go back together.
 
 **[Download for Windows](https://github.com/PooterTF/bigprint/releases/latest)**
 (no Python needed) · [Install from source](#from-source-windows-macos-linux) ·
 [Support the project](#support-bigprint)
+
+![bigprint splitting a model scaled to 1 m tall into 46 printable pieces](docs/screenshot.png)
+
+### Beta status
+
+bigprint is in **beta**. It works end to end and is tested automatically on
+Windows, macOS and Linux, but it hasn't seen many real-world prints yet. Expect
+rough edges, and please [report problems](https://github.com/PooterTF/bigprint/issues).
+Before committing to a big print, print one joint (two neighbouring pieces and
+a dowel) to check the fit with your printer and filament.
+
+bigprint keeps your model's shape exactly, apart from these changes:
+
+- **Changes it always makes:** the cuts themselves, plus dowel holes, piece
+  labels and hollowing.
+- **Changes it makes only when needed or asked:**
+  - Damaged models (holes, overlapping surfaces) are rebuilt by automatic
+    repair, which softens detail below the repair resolution shown in the log.
+    Turn it off with `--no-repair`.
+  - Smoothing (`--smooth`) is off unless you turn it on.
+- **Housekeeping that doesn't change the shape:** STL files store every
+  triangle's corners separately, so on loading, identical corner points are
+  joined and zero-area or duplicate triangles are dropped. No point is moved.
 
 ```
 bigprint statue.stl --height 1.8m --printer bambu-x1

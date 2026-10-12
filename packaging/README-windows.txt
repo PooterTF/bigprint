@@ -1,8 +1,12 @@
-bigprint for Windows
-====================
+bigprint for Windows (beta)
+===========================
 
-Scale a 3D model to life size and split it into printable, pinned, labelled
-pieces. No installation and no Python needed.
+A free model cutter for life-size 3D prints: scale a model up to life size and
+split it into printable, pinned, labelled pieces. No installation and no
+Python needed.
+
+bigprint is in beta. Before committing to a big print, print one joint (two
+neighbouring pieces and a dowel) to check the fit with your printer.
 
 Getting started
 ---------------
