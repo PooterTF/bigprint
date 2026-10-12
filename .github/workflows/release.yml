@@ -24,7 +24,8 @@ jobs:
       - name: Check the tag matches the version
         shell: pwsh
         run: |
-          $version = python -c "import re; print(re.search(r'__version__ = \"(.+?)\"', open('bigprint/__init__.py').read()).group(1))"
+          # bigprint/__init__.py has no imports, so this works before installing anything.
+          $version = python -c "import bigprint; print(bigprint.__version__)"
           if ("${{ github.ref_name }}" -ne "v$version") { throw "Tag ${{ github.ref_name }} does not match version v$version" }
 
       - name: Set up build environment
